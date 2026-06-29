@@ -30,6 +30,8 @@ if ($action == 'import') {
         echo "<script type='text/javascript'>alert('你的文件没有任何数据！');window.location='search.php';</script>";
         exit;
     }
+    $imported = 0;
+    $query = false;
     for ($i = 1; $i < $len_result; $i++) {
         //循环获取各字段值
         $time100 = strtotime($result[$i][0]);
@@ -41,7 +43,13 @@ if ($action == 'import') {
 		$amount = $result[$i][6];
         $special = $result[$i][7];
         $getcashflow = mb_convert_encoding($result[$i][8],'utf-8','utf-8');
-        $acuserid = $_SESSION['uid'];
+        $acuserid = isset($_SESSION['uid']) ? (int)$_SESSION['uid'] : 0;
+        if ($time100 === false || !is_numeric($amount) || !ctype_digit((string)$special)) {
+            $query = false;
+            break;
+        }
+        $amount = (float)$amount;
+        $special = (int)$special;
         
 
 
@@ -51,51 +59,59 @@ if ($action == 'import') {
             $cashflow = "2";
         }
 			
-		$sqlpay= "select * from ".$prename."account_payway where paywayname='$setpayway' and ufid='$_SESSION[uid]'";
-        $payquery = mysqli_query($conn,$sqlpay);
-        $attitle = is_array($rowpay = mysqli_fetch_array($payquery));
-        if ($attitle) {
-            $sqlpayid = "select * from ".$prename."account_payway where ufid='$_SESSION[uid]' and paywayname='$setpayway'";
-            $querypayid = mysqli_query($conn,$sqlpayid);
-            while ($rowpayid = mysqli_fetch_array($querypayid)) {
-                $acpayway = $rowpayid['payid'];
-            }
-
-        } else {
-            $sqladd = "insert into ".$prename."account_payway (paywayname,ufid) values ('$setpayway', $_SESSION[uid])";
-            $queryadd = mysqli_query($conn,$sqladd);
+		$sqlpay = "select payid from ".$prename."account_payway where paywayname=? and ufid=? LIMIT 1";
+        $stmt = mysqli_prepare($conn, $sqlpay);
+        mysqli_stmt_bind_param($stmt, "si", $setpayway, $acuserid);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_bind_result($stmt, $acpayway);
+        $attitle = mysqli_stmt_fetch($stmt);
+        mysqli_stmt_close($stmt);
+        if (!$attitle) {
+            $sqladd = "insert into ".$prename."account_payway (paywayname,ufid) values (?, ?)";
+            $stmt = mysqli_prepare($conn, $sqladd);
+            mysqli_stmt_bind_param($stmt, "si", $setpayway, $acuserid);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_close($stmt);
             $acpayway = mysqli_insert_id($conn);
-        }
-
-        $sqlcategory = "select * from ".$prename."category where categoryname='$category' and ufid='$_SESSION[uid]'";
-        $categoryquery = mysqli_query($conn,$sqlcategory);
-         $attitle = is_array($rowcategory2 = mysqli_fetch_array($categoryquery));
-		 if ($attitle) {
-            $sqlcategoryid = "select * from ".$prename."category where ufid='$_SESSION[uid]' and categoryname='$category'";
-            $querycategoryid = mysqli_query($conn,$sqlcategoryid);
-            while ($rowcategoryid = mysqli_fetch_array($querycategoryid)) {
-                $accategory = $rowcategoryid['categoryid'];
-            }
-
         } else {
-            $sqladd = "insert into ".$prename."category (categoryname,ufid) values ('$category', $_SESSION[uid])";
-            $queryadd = mysqli_query($conn,$sqladd);
-            $accategory = mysqli_insert_id($conn);
+            $acpayway = (int)$acpayway;
         }
-		 	
-    $data_values .= "('$accategory','$acpayway','$amount','$time100','$note','$acuserid','$place','$name','$special',$cashflow,$cashflow,0),";
+
+        $sqlcategory = "select categoryid from ".$prename."category where categoryname=? and ufid=? LIMIT 1";
+        $stmt = mysqli_prepare($conn, $sqlcategory);
+        mysqli_stmt_bind_param($stmt, "si", $category, $acuserid);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_bind_result($stmt, $accategory);
+        $attitle = mysqli_stmt_fetch($stmt);
+        mysqli_stmt_close($stmt);
+		 if (!$attitle) {
+            $sqladd = "insert into ".$prename."category (categoryname,ufid) values (?, ?)";
+            $stmt = mysqli_prepare($conn, $sqladd);
+            mysqli_stmt_bind_param($stmt, "si", $category, $acuserid);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_close($stmt);
+            $accategory = mysqli_insert_id($conn);
+        } else {
+            $accategory = (int)$accategory;
+        }
+
+        $sqlaccount = "insert into ".$prename."account (accategory,acpayway,acamount,actime,acremark,acuserid,acplace,acname,ac0,ac1,acclassid,ac2) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)";
+        $stmt = mysqli_prepare($conn, $sqlaccount);
+        mysqli_stmt_bind_param($stmt, "iidisissiii", $accategory, $acpayway, $amount, $time100, $note, $acuserid, $place, $name, $special, $cashflow, $cashflow);
+        $query = mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+        if (!$query) {
+            break;
+        }
+        $imported++;
     }
-    $data_values = substr($data_values,0,-1);
-    //去掉最后一个逗号
     fclose($handle);
     //关闭指针
-    $query = mysqli_query($conn,"insert into ".$prename."account (accategory,acpayway,acamount,actime,acremark,acuserid,acplace,acname,ac0,ac1,acclassid,ac2) values $data_values");
-    //批量插入数据表中
-    if ($query) {
+    if ($query && $imported > 0) {
         echo "<meta charset='UTF-8'>";
         $d = "导入成功！导入了";
         $e = " 条！";
-        $f = $d.$len_result.$e;
+        $f = $d.$imported.$e;
         echo "<script type='text/javascript'>alert('$f');window.location='search.php';</script>";
     } else {
         echo "<meta charset='UTF-8'>";

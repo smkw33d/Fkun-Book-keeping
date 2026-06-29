@@ -57,9 +57,30 @@ $income = 0;
 $spending = 0;
 //检查是否记账并执行
 if (isset($_POST['Submit'])) {
-    $time100 = strtotime($_POST['time']);
-    $sql = "insert into " . $prename . "account (acamount, acclassid, actime, acremark, accategory, acuserid, acplace, acpayway, acname, ac0, ac1, ac2) values ('$_POST[money]', '$_POST[ctype]', '$time100', '$_POST[remark]', '$_POST[category]', '$_SESSION[uid]', '$_POST[place]', '$_POST[payway]', '$_POST[name]', '$_POST[special]', '$_POST[ctype]', '')";
-    $query = mysqli_query($conn, $sql);
+    $money = isset($_POST['money']) ? $_POST['money'] : "";
+    $ctype = isset($_POST['ctype']) ? $_POST['ctype'] : "";
+    $category = isset($_POST['category']) ? $_POST['category'] : "";
+    $payway = isset($_POST['payway']) ? $_POST['payway'] : "";
+    $special = isset($_POST['special']) ? $_POST['special'] : "0";
+    $time100 = isset($_POST['time']) ? strtotime($_POST['time']) : false;
+    if (!is_numeric($money) || !ctype_digit((string)$ctype) || !ctype_digit((string)$category) || !ctype_digit((string)$payway) || !ctype_digit((string)$special) || $time100 === false) {
+        $query = false;
+    } else {
+        $money = (float)$money;
+        $ctype = (int)$ctype;
+        $category = (int)$category;
+        $uid = isset($_SESSION['uid']) ? (int)$_SESSION['uid'] : 0;
+        $place = isset($_POST['place']) ? $_POST['place'] : "";
+        $payway = (string)(int)$payway;
+        $name = isset($_POST['name']) ? $_POST['name'] : "";
+        $special = (int)$special;
+        $remark = isset($_POST['remark']) ? $_POST['remark'] : "";
+        $sql = "insert into " . $prename . "account (acamount, acclassid, actime, acremark, accategory, acuserid, acplace, acpayway, acname, ac0, ac1, ac2) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '')";
+        $stmt = mysqli_prepare($conn, $sql);
+        mysqli_stmt_bind_param($stmt, "diisiisssii", $money, $ctype, $time100, $remark, $category, $uid, $place, $payway, $name, $special, $ctype);
+        $query = mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+    }
     if ($query) {
         $prompttext = "<font color='#009900'>记录成功！</font>";
         header("Location:add.php");

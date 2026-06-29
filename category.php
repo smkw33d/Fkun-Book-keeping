@@ -13,14 +13,28 @@ include_once("header.php");
 </script>
 <?php
 if ($_GET["Submit"]) {
-    $sql = "select * from " . $prename . "category where categoryname='$_GET[categoryname]' and ufid='$_SESSION[uid]'";
-    $query = mysqli_query($conn, $sql);
-    $attitle = is_array($row = mysqli_fetch_array($query));
+    $uid = isset($_SESSION['uid']) ? (int)$_SESSION['uid'] : 0;
+    $categoryname = isset($_GET['categoryname']) ? trim($_GET['categoryname']) : "";
+    $ctype = isset($_GET['ctype']) ? $_GET['ctype'] : "";
+    if ($categoryname == "" || !in_array($ctype, array("1", "2"), true)) {
+        $status_text = "<font color=#FF0000>分类参数无效！</font>";
+    } else {
+    $ctype = (int)$ctype;
+    $sql = "select categoryid from " . $prename . "category where categoryname=? and ufid=? LIMIT 1";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "si", $categoryname, $uid);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $existingCategoryId);
+    $attitle = mysqli_stmt_fetch($stmt);
+    mysqli_stmt_close($stmt);
     if ($attitle) {
         $status_text = "类别已存在！";
     } else {
-        $sql = "insert into " . $prename . "category (categoryname, ufid, type) values ('$_GET[categoryname]', $_SESSION[uid],'$_GET[ctype]')";
-        $query = mysqli_query($conn, $sql);
+        $sql = "insert into " . $prename . "category (categoryname, ufid, type) values (?, ?, ?)";
+        $stmt = mysqli_prepare($conn, $sql);
+        mysqli_stmt_bind_param($stmt, "sii", $categoryname, $uid, $ctype);
+        $query = mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
         if ($query) {
             $status_text = "<font color=#00CC00>添加成功！</font>";
             echo "<meta http-equiv=refresh content='0; url=category.php'>";
@@ -28,6 +42,7 @@ if ($_GET["Submit"]) {
             $status_text = "<font color=#FF0000>添加失败,写入数据库时发生错误！</font>";
             echo "<meta http-equiv=refresh content='0; url=category.php'>";
         }
+    }
     }
 }
 ?>
