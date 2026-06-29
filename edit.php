@@ -69,22 +69,51 @@ $uid = isset($_SESSION['uid']) ? (int)$_SESSION['uid'] : 0;
 <?php
 if ($_GET['ok']) {
     //针对$ok被激活后的处理：
-    $sqltime = strtotime("$_GET[time]");
-    $sql = "update " . $prename . "account set acamount='" . $_GET['amount'] . "',acplace='" . $_GET['place'] . "',accategory='" . $_GET['accategory'] . "',acpayway='" . $_GET['acpayway'] . "',acname='" . $_GET['name'] . "',acremark='" . $_GET['beizhu'] . "',ac0='" . $_GET['ac0'] . "',actime='" . $sqltime . "' where acid='" . $_GET['id'] . "' and acuserid='" . $_SESSION['uid'] . "'";
-    $result = mysqli_query($conn, $sql);
+    if (!isset($_GET['id']) || !ctype_digit((string)$_GET['id'])) {
+        echo ("<script type='text/javascript'>alert('无效账目！');history.go(-1);</script>");
+        exit();
+    }
+    if (!isset($_GET['amount']) || !is_numeric($_GET['amount'])) {
+        echo ("<script type='text/javascript'>alert('无效金额！');history.go(-1);</script>");
+        exit();
+    }
+    $recordId = (int)$_GET['id'];
+    $amount = (float)$_GET['amount'];
+    $place = isset($_GET['place']) ? $_GET['place'] : "";
+    $accategory = isset($_GET['accategory']) ? (int)$_GET['accategory'] : 0;
+    $acpayway = isset($_GET['acpayway']) ? (int)$_GET['acpayway'] : 0;
+    $name = isset($_GET['name']) ? $_GET['name'] : "";
+    $remark = isset($_GET['beizhu']) ? $_GET['beizhu'] : "";
+    $ac0 = isset($_GET['ac0']) ? (int)$_GET['ac0'] : 0;
+    $sqltime = strtotime($_GET['time']);
+    $sql = "update " . $prename . "account set acamount=?,acplace=?,accategory=?,acpayway=?,acname=?,acremark=?,ac0=?,actime=? where acid=? and acuserid=?";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "dsiissiiii", $amount, $place, $accategory, $acpayway, $name, $remark, $ac0, $sqltime, $recordId, $uid);
+    $result = mysqli_stmt_execute($stmt);
+    mysqli_stmt_close($stmt);
     if ($result)
         echo ("<script type='text/javascript'>alert('修改成功！');history.go(-2);</script>");
     else
         echo ("<script type='text/javascript'>alert('修改失败！');history.go(-2);</script>");
 } else {
-    if ($_GET['id']) {
-        $sql = "select * from " . $prename . "account where acid='" . $_GET['id'] . "' and acuserid='" . $_SESSION['uid'] . "'";
+    if (isset($_GET['id']) && $_GET['id'] !== "") {
+        if (!ctype_digit((string)$_GET['id'])) {
+            echo "<font color='red'>无效账目。</font>";
+            exit();
+        }
+        $recordId = (int)$_GET['id'];
+        $sql = "select * from " . $prename . "account where acid='" . $recordId . "' and acuserid='" . $uid . "'";
         $result = mysqli_query($conn, $sql);
         $row = mysqli_fetch_array($result);
+        if (!$row) {
+            echo "<font color='red'>账目不存在或无权访问。</font>";
+        } else {
+            $categoryId = (int)$row['accategory'];
+            $paywayId = (int)$row['acpayway'];
 
-        $sql2 = "select * from " . $prename . "category where categoryid= '" . $row['accategoryid'] . "' and ufid='" . $_SESSION['uid'] . "'";
-        $categoryquery = mysqli_query($conn, $sql2);
-        $categoryinfo = mysqli_fetch_array($categoryquery, MYSQLI_ASSOC);
+            $sql2 = "select * from " . $prename . "category where categoryid= '" . $categoryId . "' and ufid='" . $uid . "'";
+            $categoryquery = mysqli_query($conn, $sql2);
+            $categoryinfo = mysqli_fetch_array($categoryquery, MYSQLI_ASSOC);
 
         echo "<table align='left' width='100%' border='0' cellpadding='5' cellspacing='1' bgcolor='#B3B3B3' class='table table-striped table-bordered'>
         <tr>
@@ -98,13 +127,13 @@ if ($_GET['ok']) {
 
         echo "账目分类: <select name='accategory'>";
 
-        $sqlold = "select * from " . $prename . "category where categoryid=" . $row['accategory'] . " and ufid='" . $_SESSION['uid'] . "'";
+        $sqlold = "select * from " . $prename . "category where categoryid=" . $categoryId . " and ufid='" . $uid . "'";
         $queryold = mysqli_query($conn, $sqlold);
         $rowold = mysqli_fetch_array($queryold);
 
         echo "<option value=" . $rowold['categoryid'] . ">" . $rowold['categoryname'] . "</option>";
 
-        $sqlcategory = "select * from " . $prename . "category where ufid='" . $_SESSION['uid'] . "'";
+        $sqlcategory = "select * from " . $prename . "category where ufid='" . $uid . "'";
         $categoryquery = mysqli_query($conn, $sqlcategory);
         while ($categoryname = mysqli_fetch_array($categoryquery)) {
             echo " <option value=" . $categoryname['categoryid'] . ">" . $categoryname['categoryname'] . "</option>";
@@ -112,12 +141,12 @@ if ($_GET['ok']) {
         echo "</select><br /><br />";
         echo "支付方式: <select name='acpayway'>";
 
-        $sqlold = "select * from " . $prename . "account_payway where payid=" . $row['acpayway'] . " and ufid='" . $_SESSION['uid'] . "'";
+        $sqlold = "select * from " . $prename . "account_payway where payid=" . $paywayId . " and ufid='" . $uid . "'";
         $queryold = mysqli_query($conn, $sqlold);
         $rowold = mysqli_fetch_array($queryold);
         echo "<option value=" . $rowold['payid'] . ">" . $rowold['paywayname'] . "</option>";
 
-        $sqlpayway = "select * from " . $prename . "account_payway where ufid='" . $_SESSION['uid'] . "'";
+        $sqlpayway = "select * from " . $prename . "account_payway where ufid='" . $uid . "'";
         $paywayquery = mysqli_query($conn, $sqlpayway);
         while ($paywayinfo = mysqli_fetch_array($paywayquery)) {
             echo " <option value=" . $paywayinfo['payid'] . ">" . $paywayinfo['paywayname'] . "</option>";
@@ -171,13 +200,13 @@ if ($_GET['ok']) {
     </table>";
     }
 }
+}
 ?>
 <?php
 if ($_POST['Submit']) {
     echo "";
 } else {
     if ($conn) {
-        mysqli_select_db($conn, "jizhang");
         if (!$_GET['id']) {
             //$result = mysqli_query($conn,"select * from jizhang");
 
@@ -185,7 +214,7 @@ if ($_POST['Submit']) {
             $pagesize = 50;
 
             //确定页数 p 参数
-            $p = $_GET['p'] ? $_GET['p'] : 1;
+            $p = (isset($_GET['p']) && ctype_digit((string)$_GET['p'])) ? (int)$_GET['p'] : 1;
 
             //数据指针
             $offset = ($p - 1) * $pagesize;
