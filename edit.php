@@ -1,7 +1,8 @@
 <?php
 include_once("header.php");
+$uid = isset($_SESSION['uid']) ? (int)$_SESSION['uid'] : 0;
 ?>
-<?php $sqlcurrency = "SELECT * FROM ".$prename."user where uid='$_SESSION[uid]'";
+<?php $sqlcurrency = "SELECT * FROM ".$prename."user where uid='$uid'";
                 $qurerycurrency = mysqli_query($conn,$sqlcurrency);
                 $row = mysqli_fetch_array($qurerycurrency);
                 $Currency = $row['currency'];
@@ -190,7 +191,7 @@ if ($_POST['Submit']) {
             $offset = ($p - 1) * $pagesize;
 
             //查询本页显示的数据
-            $query_sql = "SELECT * FROM " . $prename . "account where acuserid='$_SESSION[uid]' ORDER BY actime DESC LIMIT  $offset , $pagesize";
+            $query_sql = "SELECT * FROM " . $prename . "account where acuserid='$uid' ORDER BY actime DESC LIMIT  $offset , $pagesize";
             $query = mysqli_query($conn, $query_sql);
             //echo $query_sql;
 
@@ -214,10 +215,10 @@ if ($_POST['Submit']) {
 
             while ($row = mysqli_fetch_array($query)) {
 
-                $sqlpay = "select * from " . $prename . "account_payway where payid=$row[acpayway] and ufid='$_SESSION[uid]'";
+                $sqlpay = "select * from " . $prename . "account_payway where payid=$row[acpayway] and ufid='$uid'";
                 $payquery = mysqli_query($conn, $sqlpay);
                 $payinfo = mysqli_fetch_array($payquery);
-                $sqlcategory = "select * from " . $prename . "category where categoryid=$row[accategory] and ufid='$_SESSION[uid]'";
+                $sqlcategory = "select * from " . $prename . "category where categoryid=$row[accategory] and ufid='$uid'";
                 $categoryquery = mysqli_query($conn, $sqlcategory);
                 $categoryname = mysqli_fetch_array($categoryquery);
                 echo "<tr>";
@@ -307,7 +308,7 @@ if ($_POST['Submit']) {
                       <tr><td align='left' bgcolor='#FFFFFF'>";
 
             //计算总数
-            $count_result = mysqli_query($conn, "SELECT count(*) as count FROM " . $prename . "account where acuserid='$_SESSION[uid]'");
+            $count_result = mysqli_query($conn, "SELECT count(*) as count FROM " . $prename . "account where acuserid='$uid'");
             $count_array = mysqli_fetch_array($count_result);
 
             //计算总的页数
@@ -431,7 +432,7 @@ echo "</select>"; */
                 <option value='quan'>ALL</option>
 
                     <?php
-                    $sqlcategory = "select * from " . $prename . "category where ufid='$_SESSION[uid]'";
+                    $sqlcategory = "select * from " . $prename . "category where ufid='$uid'";
                     $querycategory = mysqli_query($conn, $sqlcategory);
                     while ($rowcategory = mysqli_fetch_array($querycategory)) {
                         echo "<option value='$rowcategory[categoryid]'>$rowcategory[categoryname]</option>";
@@ -455,29 +456,37 @@ echo "</select>"; */
 
 
 <?php if ($_POST['Submit']) {
-    $a = "%";
-    $b = $_POST['beizhu'];
-    $c = $a . $b . $a;
+    $accategory = isset($_POST['accategory']) ? $_POST['accategory'] : "";
+    if (!in_array($accategory, array("quan", "sr", "zc"), true)) {
+        if (!ctype_digit((string)$accategory)) {
+            echo "<font color='red'>Invalid category selected.</font>";
+            exit();
+        }
+        $accategory = (string)(int)$accategory;
+    }
+    $_POST['accategory'] = $accategory;
+    $b = isset($_POST['beizhu']) ? $_POST['beizhu'] : "";
+    $c = "%" . mysqli_real_escape_string($conn, $b) . "%";
     //只查询备注
     if ($_POST['accategory'] == "quan" && $_POST['time1'] == "" && $_POST['time2'] == "" && $_POST['beizhu'] <> "") {
 
-        $sql = "select * from " . $prename . "account where acremark like '$c' and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+        $sql = "select * from " . $prename . "account where acremark like '$c' and acuserid='$uid' ORDER BY actime ASC";
     }
     //什么都没填
     if ($_POST['accategory'] == "quan" && $_POST['time1'] == "" && $_POST['time2'] == "" && $_POST['beizhu'] == "") {
-        $sql = "select * from " . $prename . "account where acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+        $sql = "select * from " . $prename . "account where acuserid='$uid' ORDER BY actime ASC";
     }
     //只查询分类
     if ($_POST['accategory'] <> "quan" && $_POST['time1'] == "" && $_POST['time2'] == "" && $_POST['beizhu'] == "") {
         $sqlcategory = "accategory=" . $_POST['accategory'];
-        $sql = "select * from " . $prename . "account where " . $sqlcategory . " and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+        $sql = "select * from " . $prename . "account where " . $sqlcategory . " and acuserid='$uid' ORDER BY actime ASC";
     }
 
     //只查询日期
     if ($_POST['accategory'] == "quan" && $_POST['time1'] <> "" && $_POST['time2'] <> "" && $_POST['beizhu'] == "") {
 
         $sqltime = " actime >" . strtotime($_POST['time1'] . " 0:0:0") . " and actime <" . strtotime($_POST['time2'] . " 23:59:59");
-        $sql = "select * from " . $prename . "account where " . $sqltime . " and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+        $sql = "select * from " . $prename . "account where " . $sqltime . " and acuserid='$uid' ORDER BY actime ASC";
     }
     //------------------------------
     //查询分类，日期，备注
@@ -486,16 +495,16 @@ echo "</select>"; */
         $sqlcategory = "accategory=" . $_POST['accategory'];
         $sqltime = " actime >" . strtotime($_POST['time1'] . " 0:0:0") . " and actime <" . strtotime($_POST['time2'] . " 23:59:59");
 
-        $sql = "select * from " . $prename . "account where " . $sqlcategory . " and " . $sqltime . " and acremark like '$c' and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+        $sql = "select * from " . $prename . "account where " . $sqlcategory . " and " . $sqltime . " and acremark like '$c' and acuserid='$uid' ORDER BY actime ASC";
     }
 
 
     //查询日期，备注
-    if ($_POST['categoryid'] == "quan" && $_POST['time1'] <> "" && $_POST['time2'] <> "" && $_POST['beizhu'] <> "") {
+    if ($_POST['accategory'] == "quan" && $_POST['time1'] <> "" && $_POST['time2'] <> "" && $_POST['beizhu'] <> "") {
 
         $sqltime = " actime >" . strtotime($_POST['time1'] . " 0:0:0") . " and actime <" . strtotime($_POST['time2'] . " 23:59:59");
 
-        $sql = "select * from " . $prename . "account where " . $sqltime . " and acremark like '$c' and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+        $sql = "select * from " . $prename . "account where " . $sqltime . " and acremark like '$c' and acuserid='$uid' ORDER BY actime ASC";
     }
 
 
@@ -505,7 +514,7 @@ echo "</select>"; */
 
         $sqlcategory = "accategory=" . $_POST['accategory'];
 
-        $sql = "select * from " . $prename . "account where " . $sqlcategory . " and acremark like '$c' and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+        $sql = "select * from " . $prename . "account where " . $sqlcategory . " and acremark like '$c' and acuserid='$uid' ORDER BY actime ASC";
     }
 
     //查询分类，日期
@@ -514,7 +523,7 @@ echo "</select>"; */
         $sqlcategory = "accategory=" . $_POST['accategory'];
         $sqltime = " actime >" . strtotime($_POST['time1'] . " 0:0:0") . " and actime <" . strtotime($_POST['time2'] . " 23:59:59");
 
-        $sql = "select * from " . $prename . "account where " . $sqlcategory . " and " . $sqltime . " and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+        $sql = "select * from " . $prename . "account where " . $sqlcategory . " and " . $sqltime . " and acuserid='$uid' ORDER BY actime ASC";
     }
 
 
@@ -543,7 +552,7 @@ echo "</select>"; */
 
     $query = mysqli_query($conn, $sql);
     while ($row = mysqli_fetch_array($query)) {
-        $sqlcategory = "select * from " . $prename . "category where categoryid=$row[accategory] and ufid='$_SESSION[uid]'";
+        $sqlcategory = "select * from " . $prename . "category where categoryid=$row[accategory] and ufid='$uid'";
         $categoryquery = mysqli_query($conn, $sqlcategory);
         $categoryname = mysqli_fetch_array($categoryquery);
 
@@ -599,6 +608,15 @@ echo "</select>"; */
 ?>
 
 <?php if ($_POST['Submitfanwei']) {
+    $accategory = isset($_POST['accategory']) ? $_POST['accategory'] : "";
+    if (!in_array($accategory, array("quan", "sr", "zc"), true)) {
+        if (!ctype_digit((string)$accategory)) {
+            echo "<font color='red'>Invalid category selected.</font>";
+            exit();
+        }
+        $accategory = (string)(int)$accategory;
+    }
+    $_POST['accategory'] = $accategory;
     if ($_POST['beizhu'] <> "") {
         $b = $_POST['beizhu'];
         $str = trim($b);
@@ -641,26 +659,26 @@ echo "</select>"; */
         //只查询备注
         if ($_POST['accategory'] == "quan" && $_POST['time1'] == "" && $_POST['time2'] == "" && $_POST['beizhu'] <> "") {
 
-            $sql = "select * from " . $prename . "account where acamount>'$a' and acamount<'$c' and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+            $sql = "select * from " . $prename . "account where acamount>'$a' and acamount<'$c' and acuserid='$uid' ORDER BY actime ASC";
         }
         //什么都没填
         if ($_POST['accategory'] == "quan" && $_POST['time1'] == "" && $_POST['time2'] == "" && $_POST['beizhu'] == "") {
-            $sql = "select * from " . $prename . "account where acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+            $sql = "select * from " . $prename . "account where acuserid='$uid' ORDER BY actime ASC";
         }
         //只查询分类
         if ($_POST['accategory'] <> "quan" && $_POST['time1'] == "" && $_POST['time2'] == "" && $_POST['beizhu'] == "") {
-            $sqlcategory = "accategory=" . $_POST['categoryid'];
-            $sql = "select * from " . $prename . "account where " . $sqlcategory . " and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+            $sqlcategory = "accategory=" . $_POST['accategory'];
+            $sql = "select * from " . $prename . "account where " . $sqlcategory . " and acuserid='$uid' ORDER BY actime ASC";
         }
 
         //只查询分类收
         if ($_POST['accategory'] == "zc" && $_POST['time1'] == "" && $_POST['time2'] == "" && $_POST['beizhu'] == "") {
 
-            $sql = "select * from " . $prename . "account where ac0='0' and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+            $sql = "select * from " . $prename . "account where ac0='0' and acuserid='$uid' ORDER BY actime ASC";
         }
         if ($_POST['accategory'] == "sr" && $_POST['time1'] == "" && $_POST['time2'] == "" && $_POST['beizhu'] == "") {
 
-            $sql = "select * from " . $prename . "account where ac0>'0' and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+            $sql = "select * from " . $prename . "account where ac0>'0' and acuserid='$uid' ORDER BY actime ASC";
         }
         //只查询分类支
 
@@ -668,12 +686,12 @@ echo "</select>"; */
         if ($_POST['accategory'] == "quan" && $_POST['time1'] <> "" && $_POST['time2'] <> "" && $_POST['beizhu'] == "") {
 
             $sqltime = " actime >" . strtotime($_POST['time1'] . " 0:0:0") . " and actime <" . strtotime($_POST['time2'] . " 23:59:59");
-            $sql = "select * from " . $prename . "account where " . $sqltime . " and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+            $sql = "select * from " . $prename . "account where " . $sqltime . " and acuserid='$uid' ORDER BY actime ASC";
         }
         if ($_POST['accategory'] == "quan" && $_POST['time1'] <> "" && $_POST['time2'] <> "" && $_POST['beizhu'] == "") {
 
             $sqltime = " actime >" . strtotime($_POST['time1'] . " 0:0:0") . " and actime <" . strtotime($_POST['time2'] . " 23:59:59");
-            $sql = "select * from " . $prename . "account where " . $sqltime . " and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+            $sql = "select * from " . $prename . "account where " . $sqltime . " and acuserid='$uid' ORDER BY actime ASC";
         }
         //------------------------------
         //查询分类，日期，备注
@@ -682,7 +700,7 @@ echo "</select>"; */
             $sqlcategory = "accategory=" . $_POST['accategory'];
             $sqltime = " actime >" . strtotime($_POST['time1'] . " 0:0:0") . " and actime <" . strtotime($_POST['time2'] . " 23:59:59");
 
-            $sql = "select * from " . $prename . "account where " . $sqlcategory . " and " . $sqltime . " and acamount>'$a' and acamount<'$c' and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+            $sql = "select * from " . $prename . "account where " . $sqlcategory . " and " . $sqltime . " and acamount>'$a' and acamount<'$c' and acuserid='$uid' ORDER BY actime ASC";
         }
         //----------------------------------------
         //查询收支，备注
@@ -690,13 +708,13 @@ echo "</select>"; */
             $type = "0";
 
 
-            $sql = "select * from " . $prename . "account where ac0='$type' and acamount>'$a' and acamount<'$c' and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+            $sql = "select * from " . $prename . "account where ac0='$type' and acamount>'$a' and acamount<'$c' and acuserid='$uid' ORDER BY actime ASC";
         }
         if ($_POST['accategory'] == "zc" && $_POST['time1'] == "" && $_POST['time2'] == "" && $_POST['beizhu'] <> "") {
             $type != "0";
 
 
-            $sql = "select * from " . $prename . "account where ac0='$type' and acamount>'$a' and acamount<'$c' and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+            $sql = "select * from " . $prename . "account where ac0='$type' and acamount>'$a' and acamount<'$c' and acuserid='$uid' ORDER BY actime ASC";
         }
 
         //查询收支，日期
@@ -705,14 +723,14 @@ echo "</select>"; */
 
             $sqltime = " actime >" . strtotime($_POST['time1'] . " 0:0:0") . " and actime <" . strtotime($_POST['time2'] . " 23:59:59");
 
-            $sql = "select * from " . $prename . "account where ac0='$type' and " . $sqltime . " and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+            $sql = "select * from " . $prename . "account where ac0='$type' and " . $sqltime . " and acuserid='$uid' ORDER BY actime ASC";
         }
         if ($_POST['accategory'] == "zc" && $_POST['time1'] <> "" && $_POST['time2'] <> "" && $_POST['beizhu'] == "") {
             $type != "0";
 
             $sqltime = " actime >" . strtotime($_POST['time1'] . " 0:0:0") . " and actime <" . strtotime($_POST['time2'] . " 23:59:59");
 
-            $sql = "select * from " . $prename . "account where ac0='$type' and " . $sqltime . " and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+            $sql = "select * from " . $prename . "account where ac0='$type' and " . $sqltime . " and acuserid='$uid' ORDER BY actime ASC";
         }
         //查询收支，日期，备注
         if ($_POST['accategory'] == "sr" && $_POST['time1'] <> "" && $_POST['time2'] <> "" && $_POST['beizhu'] <> "") {
@@ -720,14 +738,14 @@ echo "</select>"; */
 
             $sqltime = " actime >" . strtotime($_POST['time1'] . " 0:0:0") . " and actime <" . strtotime($_POST['time2'] . " 23:59:59");
 
-            $sql = "select * from " . $prename . "account where ac0='$type' and " . $sqltime . " and acamount>'$a' and acamount<'$c' and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+            $sql = "select * from " . $prename . "account where ac0='$type' and " . $sqltime . " and acamount>'$a' and acamount<'$c' and acuserid='$uid' ORDER BY actime ASC";
         }
         if ($_POST['accategory'] == "zc" && $_POST['time1'] <> "" && $_POST['time2'] <> "" && $_POST['beizhu'] <> "") {
             $type != "0";
 
             $sqltime = " actime >" . strtotime($_POST['time1'] . " 0:0:0") . " and actime <" . strtotime($_POST['time2'] . " 23:59:59");
 
-            $sql = "select * from " . $prename . "account where ac0='$type' and " . $sqltime . " and acamount>'$a' and acamount<'$c' and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+            $sql = "select * from " . $prename . "account where ac0='$type' and " . $sqltime . " and acamount>'$a' and acamount<'$c' and acuserid='$uid' ORDER BY actime ASC";
         }
 
         //查询日期，备注
@@ -735,7 +753,7 @@ echo "</select>"; */
 
             $sqltime = " actime >" . strtotime($_POST['time1'] . " 0:0:0") . " and actime <" . strtotime($_POST['time2'] . " 23:59:59");
 
-            $sql = "select * from " . $prename . "account where " . $sqltime . " and acamount>'$a' and acamount<'$c' and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+            $sql = "select * from " . $prename . "account where " . $sqltime . " and acamount>'$a' and acamount<'$c' and acuserid='$uid' ORDER BY actime ASC";
         }
 
 
@@ -745,7 +763,7 @@ echo "</select>"; */
 
             $sqlcategory = "accategory=" . $_POST['accategory'];
 
-            $sql = "select * from " . $prename . "account where " . $sqlcategory . " and acamount>'$a' and acamount<'$c' and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+            $sql = "select * from " . $prename . "account where " . $sqlcategory . " and acamount>'$a' and acamount<'$c' and acuserid='$uid' ORDER BY actime ASC";
         }
 
         //查询分类，日期
@@ -754,7 +772,7 @@ echo "</select>"; */
             $sqlcategory = "accategory=" . $_POST['accategory'];
             $sqltime = " actime >" . strtotime($_POST['time1'] . " 0:0:0") . " and actime <" . strtotime($_POST['time2'] . " 23:59:59");
 
-            $sql = "select * from " . $prename . "account where " . $sqlcategory . " and " . $sqltime . " and acuserid='$_SESSION[uid]' ORDER BY actime ASC";
+            $sql = "select * from " . $prename . "account where " . $sqlcategory . " and " . $sqltime . " and acuserid='$uid' ORDER BY actime ASC";
         }
 
 
@@ -780,9 +798,9 @@ echo "</select>"; */
 
         $query = mysqli_query($conn, $sql);
         while ($row = mysqli_fetch_array($query)) {
-            $sqlpay = "select * from " . $prename . "account_payway where payid=$row[acpayway] and ufid='$_SESSION[uid]'";
+            $sqlpay = "select * from " . $prename . "account_payway where payid=$row[acpayway] and ufid='$uid'";
             $payquery = mysqli_query($conn, $sqlpay);
-            $sqlcategory = "select * from " . $prename . "category where categoryid=$row[accategory] and ufid='$_SESSION[uid]'";
+            $sqlcategory = "select * from " . $prename . "category where categoryid=$row[accategory] and ufid='$uid'";
             $categoryquery = mysqli_query($conn, $sqlcategory);
             $payinfo = mysqli_fetch_array($payquery);
             $categoryname = mysqli_fetch_array($categoryquery);

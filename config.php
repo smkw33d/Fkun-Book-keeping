@@ -29,8 +29,23 @@ function user_shell($uid,$shell) {
     //其他页面权限判断
     global $conn;
     global $prename;
-    $query = mysqli_query($conn,"SELECT * FROM ".$prename."user WHERE uid = $uid");
-    $exist = is_array($row = mysqli_fetch_array($query));
+    $uid = (int)$uid;
+    $sql = "SELECT uid, username, password FROM ".$prename."user WHERE uid = ?";
+    $stmt = mysqli_prepare($conn, $sql);
+    if (!$stmt) {
+        echo "权限不足, 正在跳转登入页面……";
+        exit();
+    }
+    mysqli_stmt_bind_param($stmt, "i", $uid);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $rowUid, $rowUsername, $rowPassword);
+    $exist = mysqli_stmt_fetch($stmt);
+    mysqli_stmt_close($stmt);
+    $row = array(
+        'uid' => $rowUid,
+        'username' => $rowUsername,
+        'password' => $rowPassword
+    );
     $exist2 = $exist?$shell == md5($row['username'].$row['password']):FALSE;
     if ($exist2) {
         return $row;

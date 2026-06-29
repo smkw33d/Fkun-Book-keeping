@@ -213,7 +213,7 @@
                 echo "失败<br /><font color='red'>安装失败，请检查config.php相关配置。</font></body></html>";
             }
             echo "<br />加入默认用户.....";
-            $query = mysqli_query($conn, "select * from " . $prename . "user where username='admin'");
+            $query = mysqli_query($conn, "select * from " . $prename . "user where username='test'");
             $attitle = is_array($row = mysqli_fetch_array($query));
             if ($attitle) {
                 echo "<br />默认用户已存在！<br /><a href='login.php'>点这里立即登录</a>";
@@ -221,7 +221,8 @@
             } else {
                 $nowdate = date("Y-m-d H:i:s");
                 $utime = strtotime($nowdate);
-                $query = mysqli_query($conn, "insert into " . $prename . "user (uid, username, password,email,utime,currency) values ('1', 'test', '098f6bcd4621d373cade4e832627b4f6','admin@fkun.tech','$utime','¥')");
+                $defaultPasswordHash = md5(uniqid(mt_rand(), true));
+                $query = mysqli_query($conn, "insert into " . $prename . "user (uid, username, password,email,utime,currency) values ('1', 'test', '$defaultPasswordHash','admin@fkun.tech','$utime','¥')");
                 if ($query) {
                     echo "成功<br />";
                     echo "<br />安装完成！请再主页注册新账号开始使用！";

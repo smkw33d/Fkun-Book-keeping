@@ -68,11 +68,13 @@
                                 密码：<input type="password" name="password" id="password" size="18" maxlength="15" /><br /><br />
                                 <input name="submitdl" type="submit" value="登入" class="btn btn-default" /> <?php
                                 if ($_GET['submitdl']) {
-                                    $user = $_GET['username'];
-                                    $upass = $_GET['password'];
-                                    $result = mysqli_query($conn,"SELECT * FROM Finance_user WHERE username='$user'");
+                                    $user = isset($_GET['username']) ? trim($_GET['username']) : '';
+                                    $upass = isset($_GET['password']) ? $_GET['password'] : '';
+                                    $safeUser = mysqli_real_escape_string($conn, $user);
+                                    $result = mysqli_query($conn, "SELECT * FROM " . $prename . "user WHERE username='$safeUser' LIMIT 1");
                                     $row = mysqli_fetch_array($result);
-                                    if ($upass == $row['cpassword'] && $user == $row['username'] && $row['cpassword'] !== "") {
+                                    $foundClientUser = is_array($row);
+                                    if ($foundClientUser && $upass == $row['cpassword'] && $user == $row['username'] && $row['cpassword'] !== "") {
                                         $_SESSION['uuid'] = $row['uid'];
                                         echo "</font><meta http-equiv=refresh content='0; url=client.php'>";
                                     } else {

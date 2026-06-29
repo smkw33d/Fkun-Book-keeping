@@ -20,16 +20,8 @@ if ($_GET['tj'] == 'logout') {
 
 <?php
 header("content-type:text/json;charset=utf-8");
-$con = mysqli_connect("localhost", "finance", "19980322Feng!");
-if (!$con) {
-    die('Could not connect database: ');
-}
-$db_selected = mysqli_select_db($con, "Billsys");
-if (!$db_selected) {
-    die("Can\'t use yxz : ");
-}
-mysqli_query($con, "SET CHARACTER SET utf8");
-$sql = mysqli_query($con, "SELECT * FROM `Finance_account` where acuserid='$_SESSION[uid]'");
+$uid = isset($_SESSION['uid']) ? (int)$_SESSION['uid'] : 0;
+$sql = mysqli_query($conn, "SELECT * FROM `" . $prename . "account` where acuserid='" . $uid . "'");
 $arr = array();
 while ($row = mysqli_fetch_array($sql)) {
     $count = count($row); //不能在循环语句中，由于每次删除 row数组长度都减小
@@ -39,5 +31,4 @@ while ($row = mysqli_fetch_array($sql)) {
     array_push($arr, $row);
 }
 echo json_encode($arr, JSON_UNESCAPED_UNICODE);
-mysqli_close($con);
 ?>

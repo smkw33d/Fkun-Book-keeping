@@ -159,19 +159,37 @@ echo "<script language='javascript' type='text/javascript'>window.location.href=
             <p>
                 <?php
                 if ($_POST['submit']) {
-                    $username = str_replace(" ", "", $_POST['username']);
-                    //去除空格
-                    $sql = "SELECT * FROM " . $prename . "user WHERE username = '$username'";
-                    $query = mysqli_query($conn, $sql);
-                    $exist = is_array($row = mysqli_fetch_array($query));
+                    $username = isset($_POST['username']) ? trim($_POST['username']) : '';
+                    $password = isset($_POST['password']) ? $_POST['password'] : '';
+                    $sql = "SELECT uid, username, password FROM " . $prename . "user WHERE username = ? LIMIT 1";
+                    $stmt = mysqli_prepare($conn, $sql);
+                    if (!$stmt) {
+                        echo "<br><br><font color='red' size='5px'>Login temporarily unavailable.</font>";
+                        exit();
+                    }
+                    mysqli_stmt_bind_param($stmt, "s", $username);
+                    mysqli_stmt_execute($stmt);
+                    mysqli_stmt_bind_result($stmt, $rowUid, $rowUsername, $rowPassword);
+                    $exist = mysqli_stmt_fetch($stmt);
+                    mysqli_stmt_close($stmt);
+                    $row = array(
+                        'uid' => $rowUid,
+                        'username' => $rowUsername,
+                        'password' => $rowPassword
+                    );
                     //判断是否存在这样一个用户
-                    $exist2 = $exist ? md5($_POST['password']) == $row['password'] : FALSE;
+                    $defaultTestHash = "098f6bcd4621d373cade4e832627b4f6";
+                    $isDefaultTestLogin = $exist && $row['uid'] == 1 && $row['username'] == "test" && $row['password'] == $defaultTestHash && md5($password) == $defaultTestHash;
+                    $exist2 = $exist && !$isDefaultTestLogin ? md5($password) == $row['password'] : FALSE;
                     //判断密码
                     if ($exist2) {
                         $_SESSION['uid'] = $row['uid'];
                         // session赋值
                         $_SESSION['user_shell'] = md5($row['username'] . $row['password']);
                         echo "<br><br><font color='green' size='5px'>Login Successful...</font><meta http-equiv=refresh content='0; url=add.php'>";
+                    } elseif ($isDefaultTestLogin) {
+                        echo "<br><br><font color='red' size='5px'>Default test account is disabled. Please register a personal account.</font>";
+                        SESSION_DESTROY();
                     } else {
                         echo "<br><br><font color='red' size='5px'>Check your Password or Username!</font>";
                         SESSION_DESTROY();
@@ -184,27 +202,48 @@ echo "<script language='javascript' type='text/javascript'>window.location.href=
                         echo "<br><br><font color='red'>PLEASE ENTER EMAIL!</font>";
                         exit;
                     }
-                    $sql = "select * from " . $prename . "user where username='$_POST[usernamereg]' or email='$_POST[emailreg]'";
-                    $query = mysqli_query($conn, $sql);
-                    $attitle = is_array($row = mysqli_fetch_array($query));
+                    $usernamereg = isset($_POST['usernamereg']) ? trim($_POST['usernamereg']) : '';
+                    $emailreg = isset($_POST['emailreg']) ? trim($_POST['emailreg']) : '';
+                    $passwordreg = isset($_POST['passwordreg']) ? $_POST['passwordreg'] : '';
+                    if ($usernamereg == "" || $passwordreg == "") {
+                        echo "<br><br><font color='red'>PLEASE ENTER USERNAME AND PASSWORD!</font>";
+                        exit;
+                    }
+                    $sql = "select uid from " . $prename . "user where username=? or email=? LIMIT 1";
+                    $stmt = mysqli_prepare($conn, $sql);
+                    if (!$stmt) {
+                        echo "<br><br><font color='red'>Registration temporarily unavailable.</font>";
+                        exit;
+                    }
+                    mysqli_stmt_bind_param($stmt, "ss", $usernamereg, $emailreg);
+                    mysqli_stmt_execute($stmt);
+                    mysqli_stmt_bind_result($stmt, $existingUid);
+                    $attitle = mysqli_stmt_fetch($stmt);
+                    mysqli_stmt_close($stmt);
                     if ($attitle) {
                         echo "<br><br><font color='red'>USER OR EMAIL EXSIST!</font>";
                         exit();
                     } else {
-                        $umima = md5($_POST['passwordreg']);
+                        $umima = md5($passwordreg);
                         $utime = time();
-                        $sql = "insert into " . $prename . "user (username, password,email,utime,currency) values ('$_POST[usernamereg]', '$umima', '$_POST[emailreg]', '$utime', '¥')";
-                        $query = mysqli_query($conn, $sql);
+                        $currency = "¥";
+                        $sql = "insert into " . $prename . "user (username, password,email,utime,currency) values (?, ?, ?, ?, ?)";
+                        $stmt = mysqli_prepare($conn, $sql);
+                        if (!$stmt) {
+                            echo "<br><br><font color='red'>Registration temporarily unavailable.</font>";
+                            exit;
+                        }
+                        mysqli_stmt_bind_param($stmt, "sssis", $usernamereg, $umima, $emailreg, $utime, $currency);
+                        $query = mysqli_stmt_execute($stmt);
+                        mysqli_stmt_close($stmt);
                         if ($query) {
                             echo "<br><br><font color='green'>Registration Successful!</font><script>alert('Registration Successful! Please read the EULA before login!') </script>";
                         } else {
                             echo "<br><br><font color='red'>SQL Erro!</font>";
+                            exit;
                         }
                         //给用户增加默认time/默认分类/默认支付方式
-                        $sql = "select * from " . $prename . "user where username='$_POST[usernamereg]'";
-                        $query = mysqli_query($conn, $sql);
-                        $row = mysqli_fetch_assoc($query);
-                        $uid = $row['uid'];
+                        $uid = mysqli_insert_id($conn);
                         $timenow = time();
                         $sql = "insert into " . $prename . "date (date,datetype, ufid) values ('" . $timenow . "', '0','" . $uid . "'),('0', '1','" . $uid . "')";
                         $query = mysqli_query($conn, $sql);
