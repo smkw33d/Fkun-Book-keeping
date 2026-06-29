@@ -189,10 +189,10 @@ echo "<script language='javascript' type='text/javascript'>window.location.href=
                         echo "<br><br><font color='green' size='5px'>Login Successful...</font><meta http-equiv=refresh content='0; url=add.php'>";
                     } elseif ($isDefaultTestLogin) {
                         echo "<br><br><font color='red' size='5px'>Default test account is disabled. Please register a personal account.</font>";
-                        SESSION_DESTROY();
+                        unset($_SESSION['uid'], $_SESSION['user_shell']);
                     } else {
                         echo "<br><br><font color='red' size='5px'>Check your Password or Username!</font>";
-                        SESSION_DESTROY();
+                        unset($_SESSION['uid'], $_SESSION['user_shell']);
                     }
                 }
                 ?>
